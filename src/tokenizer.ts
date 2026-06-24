@@ -1,4 +1,5 @@
 import { exhaust } from "./exhaust.ts";
+import { createCharset } from "./charset.ts";
 
 type Token =
   | {
@@ -30,11 +31,15 @@ const HYPHEN_MINUS = 45;
 const PERIOD = 46;
 const BACKSLASH = 92;
 
+const NON_DELIMITERS = createCharset(`!$%&*+-./:<?=>@^_`); // Borrowed from the Janet language
+
 const space = (c: number) => c === TAB || c === LF || c === CR || c === SPACE;
 const delim = (c: number) => space(c) || c === RPAREN || c === LPAREN;
 
 const alpha = (c: number) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
 const digit = (c: number) => c >= 48 && c <= 57;
+const nominal = (c: number) => alpha(c) || digit(c) || NON_DELIMITERS.has(c);
+
 const sign = (c: number) => c === PLUS || c === HYPHEN_MINUS;
 const radix = (c: number) => c === PERIOD;
 const exp = (c: number) => c === 69 || c === 101;
@@ -87,7 +92,7 @@ interface ScannerDef<S extends string, T> {
 
 type Scanner<T> = (str: string, start: number) => ScanResult<T>;
 
-function defineScanner<S, T>({
+function defineScanner<S extends string, T>({
   next,
   error,
   finish,
@@ -210,119 +215,8 @@ const scanNumber = defineScanner({
   },
 });
 
-// function scanNumber(s: string, start: number): ScanResult<number> {
-//   const len = s.length;
-//   let pos = start;
-//   let state: "start" | "int" | "dec" | "sci" | "exp" | "end" | "error" =
-//     "start";
-
-//   function next(s: typeof state, c: number): typeof state {
-//     switch (s) {
-//       case "start":
-//         if (sign(c) || digit(c)) {
-//           return "int";
-//         } else if (radix(c)) {
-//           return "dec";
-//         } else if (delim(c)) {
-//           return "end";
-//         } else {
-//           return "error";
-//         }
-
-//       case "int":
-//         if (digit(c)) {
-//           return "int";
-//         } else if (radix(c)) {
-//           return "dec";
-//         } else if (delim(c)) {
-//           return "end";
-//         } else if (exp(c)) {
-//           return "sci";
-//         } else {
-//           return "error";
-//         }
-
-//       case "dec":
-//         if (digit(c)) {
-//           return "dec";
-//         } else if (delim(c)) {
-//           return "end";
-//         } else if (exp(c)) {
-//           return "sci";
-//         } else {
-//           return "error";
-//         }
-
-//       case "sci":
-//         if (sign(c) || digit(c)) {
-//           return "exp";
-//         } else {
-//           return "error";
-//         }
-
-//       case "exp":
-//         if (digit(c)) {
-//           return "exp";
-//         } else if (delim(c)) {
-//           return "end";
-//         } else {
-//           return "error";
-//         }
-//         break;
-
-//       case "error":
-//       case "end":
-//         return s;
-
-//       default:
-//         exhaust(s);
-//     }
-//   }
-
-//   for (; pos < len; pos += 1) {
-//     const c = s.codePointAt(pos)!;
-//     state = next(state, c);
-
-//     if (state === "error") {
-//       return {
-//         nextPos: pos,
-//         value: null,
-//         error: "No number recognized",
-//         ok: false,
-//       };
-//     }
-
-//     if (state === "end") {
-//       break;
-//     }
-//   }
-
-//   const str = s.substring(start, pos);
-//   const value = parseFloat(str);
-
-//   if (isFinite(value)) {
-//     return {
-//       value,
-//       nextPos: pos,
-//       ok: true,
-//       error: null,
-//     };
-//   } else {
-//     return {
-//       value: null,
-//       error: `Error parsing numeric value ${value}`,
-//       ok: false,
-//       nextPos: pos,
-//     };
-//   }
-// }
-
-function scanString(s: string, start: number): ScanResult<string> {
-  const len = s.length;
-  let pos = start;
-  let state: "start" | "continue" | "escape" | "end" | "error" = "start";
-
-  function next(s: typeof state, c: number): typeof state {
+const scanString = defineScanner({
+  next(s: "start" | "continue" | "escape" | "end" | "error", c) {
     switch (s) {
       case "start":
         if (c === DQUOTE) {
@@ -350,106 +244,91 @@ function scanString(s: string, start: number): ScanResult<string> {
       default:
         exhaust(s);
     }
-  }
-
-  for (; pos < len; pos += 1) {
-    const c = s.codePointAt(pos)!;
-
-    state = next(state, c);
-
-    if (state === "error") {
-      return {
-        nextPos: pos,
-        value: null,
-        error: "No string recognized",
-        ok: false,
-      };
-    }
-
-    if (state === "end") {
-      break;
-    }
-  }
-
-  if (state === "end") {
-    const value = s.substring(start + 1, pos);
-
-    return {
-      nextPos: pos + 1,
-      value,
-      error: null,
-      ok: true,
-    };
-  } else {
+  },
+  error(_, pos) {
     return {
       nextPos: pos,
       value: null,
-      error: "Unexpected end of input",
+      error: "No string recognized",
       ok: false,
     };
-  }
-}
+  },
+  finish(s, state, start, pos) {
+    if (state === "end") {
+      const value = s.substring(start + 1, pos);
 
-function scanName(s: string, start: number): ScanResult<string> {
-  const len = s.length;
-  let pos = start;
-  let state: "start" | "continue" | "end" | "error" = "start";
+      return {
+        nextPos: pos + 1,
+        value,
+        error: null,
+        ok: true,
+      };
+    } else {
+      return {
+        nextPos: pos,
+        value: null,
+        error: "Unexpected end of input",
+        ok: false,
+      };
+    }
+  },
+});
 
-  scan: for (; pos < len; pos += 1) {
-    const c = s.codePointAt(pos)!;
+const scanName = defineScanner({
+  next(state: "start" | "continue" | "end" | "error", c) {
     switch (state) {
       case "start":
-        if (alpha(c)) {
-          state = "continue";
+        // Name can't start with a number
+        if (!digit(c) && nominal(c)) {
+          return "continue";
         } else {
-          state = "error";
+          return "error";
         }
-        break;
 
       case "continue":
-        if (alpha(c) || digit(c)) {
-          state = "continue";
+        if (nominal(c)) {
+          return "continue";
         } else if (delim(c)) {
-          state = "end";
+          return "end";
         } else {
-          state = "error";
+          return "error";
         }
-        break;
 
       case "end":
       case "error":
-        pos -= 1; // rewind
-        break scan;
+        return state;
 
       default:
         exhaust(state);
     }
-  }
-  if (state === "end" || pos === len - 1) {
-    const value = s.substring(start, pos);
-
-    return {
-      nextPos: pos,
-      value,
-      error: null,
-      ok: true,
-    };
-  } else if (state === "error") {
+  },
+  error(_, pos) {
     return {
       nextPos: pos,
       value: null,
       error: "Invalid character",
       ok: false,
     };
-  } else {
-    return {
-      nextPos: pos,
-      value: null,
-      error: "Unexpected end of input",
-      ok: false,
-    };
-  }
-}
+  },
+  finish(s, state, start, pos) {
+    if (state === "end") {
+      const value = s.substring(start, pos);
+      return {
+        nextPos: pos,
+        value,
+        error: null,
+        ok: true,
+      };
+    } else {
+      return {
+        nextPos: pos,
+        value: null,
+        error: "Unexpected end of input",
+        ok: false,
+      };
+    }
+  },
+});
 
 function* tokenize(s: string): Generator<Token> {
   const len = s.length;
