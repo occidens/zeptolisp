@@ -70,14 +70,55 @@ type ScanError = {
 };
 
 type ScanResult<T> = ScanSuccess<T> | ScanError;
+type ScannerState = "start" | "end" | "error";
 
-function scanNumber(s: string, start: number): ScanResult<number> {
-  const len = s.length;
-  let pos = start;
-  let state: "start" | "int" | "dec" | "sci" | "exp" | "end" | "error" =
-    "start";
+type State<S extends string> = S | ScannerState;
 
-  function next(s: typeof state, c: number): typeof state {
+interface ScannerDef<S extends string, T> {
+  next(state: State<S>, char: number): State<S>;
+  error(str: string, pos: number): ScanError;
+  finish(
+    str: string,
+    state: State<S>,
+    start: number,
+    pos: number,
+  ): ScanResult<T>;
+}
+
+type Scanner<T> = (str: string, start: number) => ScanResult<T>;
+
+function defineScanner<S, T>({
+  next,
+  error,
+  finish,
+}: ScannerDef<S, T>): Scanner<T> {
+  return function scanner(str: string, start: number) {
+    const { length } = str;
+    let pos = start;
+    let state: State<S> = "start";
+
+    for (; pos < length; pos += 1) {
+      const c = str.codePointAt(pos)!;
+      state = next(state, c);
+
+      if (state === "error") {
+        return error(str, pos);
+      }
+
+      if (state === "end") {
+        break;
+      }
+    }
+
+    return finish(str, state, start, pos);
+  };
+}
+
+const scanNumber = defineScanner({
+  next(
+    s: "start" | "int" | "dec" | "sci" | "exp" | "end" | "error",
+    c: number,
+  ) {
     switch (s) {
       case "start":
         if (sign(c) || digit(c)) {
@@ -138,45 +179,143 @@ function scanNumber(s: string, start: number): ScanResult<number> {
       default:
         exhaust(s);
     }
-  }
+  },
+  error(_, pos) {
+    return {
+      nextPos: pos,
+      value: null,
+      error: "No number recognized",
+      ok: false,
+    };
+  },
+  finish(str, state, start, pos) {
+    const numstr = str.substring(start, pos);
+    const value = parseFloat(numstr);
 
-  for (; pos < len; pos += 1) {
-    const c = s.codePointAt(pos)!;
-    state = next(state, c);
-
-    if (state === "error") {
+    if (isFinite(value)) {
       return {
+        value,
         nextPos: pos,
+        ok: true,
+        error: null,
+      };
+    } else {
+      return {
         value: null,
-        error: "No number recognized",
+        error: `Error parsing numeric value ${value}`,
         ok: false,
+        nextPos: pos,
       };
     }
+  },
+});
 
-    if (state === "end") {
-      break;
-    }
-  }
+// function scanNumber(s: string, start: number): ScanResult<number> {
+//   const len = s.length;
+//   let pos = start;
+//   let state: "start" | "int" | "dec" | "sci" | "exp" | "end" | "error" =
+//     "start";
 
-  const str = s.substring(start, pos);
-  const value = parseFloat(str);
+//   function next(s: typeof state, c: number): typeof state {
+//     switch (s) {
+//       case "start":
+//         if (sign(c) || digit(c)) {
+//           return "int";
+//         } else if (radix(c)) {
+//           return "dec";
+//         } else if (delim(c)) {
+//           return "end";
+//         } else {
+//           return "error";
+//         }
 
-  if (isFinite(value)) {
-    return {
-      value,
-      nextPos: pos,
-      ok: true,
-      error: null,
-    };
-  } else {
-    return {
-      value: null,
-      error: `Error parsing numeric value ${value}`,
-      ok: false,
-      nextPos: pos,
-    };
-  }
-}
+//       case "int":
+//         if (digit(c)) {
+//           return "int";
+//         } else if (radix(c)) {
+//           return "dec";
+//         } else if (delim(c)) {
+//           return "end";
+//         } else if (exp(c)) {
+//           return "sci";
+//         } else {
+//           return "error";
+//         }
+
+//       case "dec":
+//         if (digit(c)) {
+//           return "dec";
+//         } else if (delim(c)) {
+//           return "end";
+//         } else if (exp(c)) {
+//           return "sci";
+//         } else {
+//           return "error";
+//         }
+
+//       case "sci":
+//         if (sign(c) || digit(c)) {
+//           return "exp";
+//         } else {
+//           return "error";
+//         }
+
+//       case "exp":
+//         if (digit(c)) {
+//           return "exp";
+//         } else if (delim(c)) {
+//           return "end";
+//         } else {
+//           return "error";
+//         }
+//         break;
+
+//       case "error":
+//       case "end":
+//         return s;
+
+//       default:
+//         exhaust(s);
+//     }
+//   }
+
+//   for (; pos < len; pos += 1) {
+//     const c = s.codePointAt(pos)!;
+//     state = next(state, c);
+
+//     if (state === "error") {
+//       return {
+//         nextPos: pos,
+//         value: null,
+//         error: "No number recognized",
+//         ok: false,
+//       };
+//     }
+
+//     if (state === "end") {
+//       break;
+//     }
+//   }
+
+//   const str = s.substring(start, pos);
+//   const value = parseFloat(str);
+
+//   if (isFinite(value)) {
+//     return {
+//       value,
+//       nextPos: pos,
+//       ok: true,
+//       error: null,
+//     };
+//   } else {
+//     return {
+//       value: null,
+//       error: `Error parsing numeric value ${value}`,
+//       ok: false,
+//       nextPos: pos,
+//     };
+//   }
+// }
 
 function scanString(s: string, start: number): ScanResult<string> {
   const len = s.length;
