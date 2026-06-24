@@ -5,18 +5,19 @@ type Atom = string | number | symbol;
 type Expr = Atom | List;
 type List = Array<Expr>;
 
-function parse(tokens: Iterator<Token>, top: boolean = false): Expr {
+function parse(tokens: Iterator<Token>, depth: number = 0): Expr {
   function next(): Token | null {
     const { done, value } = tokens.next();
     return done ? null : value;
   }
 
-  const res = [];
+  const acc = [];
 
   while (true) {
     const token = next();
 
     console.log("Token: %o", token);
+    console.log("Depth %d", depth);
 
     if (token === null) {
       break;
@@ -28,14 +29,14 @@ function parse(tokens: Iterator<Token>, top: boolean = false): Expr {
       case "string":
       case "number":
       case "symbol":
-        res.push(value);
+        acc.push(value);
         break;
 
       case "delimiter":
         if (value === ")") {
-          return res;
+          return acc;
         } else if (value === "(") {
-          res.push(parse(tokens));
+          acc.push(parse(tokens, depth + 1));
         } else {
           throw new Error("Unexpected delimiter value");
         }
@@ -47,8 +48,8 @@ function parse(tokens: Iterator<Token>, top: boolean = false): Expr {
         exhaust(kind);
     }
   }
-  if (top) {
-    return res[0];
+  if (depth === 0) {
+    return acc;
   }
   throw new Error("Unexpected end of input");
 }

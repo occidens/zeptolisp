@@ -32,7 +32,7 @@ repl.on("history", dumpHistory);
 
 while (true) {
   const line = await repl.question("repl:> ");
-  const expr = read(line, false);
+  const expr = read(line);
   console.log(JSON.stringify(expr));
 
   // if (/^\s*(\s*quit\s*)\s*$/.test(line)) {
