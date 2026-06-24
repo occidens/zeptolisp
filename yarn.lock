@@ -2,11 +2,57 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 9
+  version: 10
   cacheKey: 10c0
 
-"lisp@workspace:.":
+"@types/node@npm:^26.0.0":
+  version: 26.0.0
+  resolution: "@types/node@npm:26.0.0"
+  dependencies:
+    undici-types: "npm:~8.3.0"
+  checksum: 10c0/f36e21634fd8e8ded162ca486508bd8bb229d398a8d5541f6d8c1255968d4464e53327a77f403b216ef98e3b6f6956882eef83e4857d4bc2be9569dd55d37aae
+  languageName: node
+  linkType: hard
+
+"corepack@npm:^0.35.0":
+  version: 0.35.0
+  resolution: "corepack@npm:0.35.0"
+  dependenciesMeta:
+    esbuild:
+      built: true
+  bin:
+    corepack: ./dist/corepack.js
+    pnpm: ./dist/pnpm.js
+    pnpx: ./dist/pnpx.js
+    yarn: ./dist/yarn.js
+    yarnpkg: ./dist/yarnpkg.js
+  checksum: 10c0/4ca68897224379cc3bdd6ff8adb36d7ce465b0fe8be3da5eadebb3c6cf3449bc5bceba61d103a3b31d4264df7103942aacd16b4504f6dcf8e36d4dbb5d5c978b
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~8.3.0":
+  version: 8.3.0
+  resolution: "undici-types@npm:8.3.0"
+  checksum: 10c0/c8aa7e2fbebfce519654dafadc0ece59be888d2ccaf180fb4495da875e7b536d2456345c384069c7e6f3e9c9ab7435f074957da306f142343eee86ff8048855a
+  languageName: node
+  linkType: hard
+
+"yarn@npm:^1.22.22":
+  version: 1.22.22
+  resolution: "yarn@npm:1.22.22"
+  bin:
+    yarn: bin/yarn.js
+    yarnpkg: bin/yarn.js
+  checksum: 10c0/8c77198c93d7542e7f4e131c63b66de357b7076ecfbcfe709ec0d674115c2dd9edaa45196e5510e6e9366d368707a802579e3402071002e1c9d9a99d491478de
+  languageName: node
+  linkType: hard
+
+"zeptolisp@workspace:.":
   version: 0.0.0-use.local
-  resolution: "lisp@workspace:."
+  resolution: "zeptolisp@workspace:."
+  dependencies:
+    "@types/node": "npm:^26.0.0"
+    corepack: "npm:^0.35.0"
+    yarn: "npm:^1.22.22"
   languageName: unknown
   linkType: soft

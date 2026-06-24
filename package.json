@@ -1,4 +1,8 @@
 {
-  "name": "lisp",
-  "packageManager": "yarn@4.14.1"
+  "name": "zeptolisp",
+  "type": "module",
+  "packageManager": "yarn@4.17.0",
+  "devDependencies": {
+    "@types/node": "^26.0.0"
+  }
 }
