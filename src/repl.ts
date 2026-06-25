@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { Reader } from "./reader.ts";
 import { print } from "./print.ts";
 import { SymbolRegistry } from "./registry.ts";
+import { evaluate } from "./evaluator.ts";
 
 const histfile = join(import.meta.dirname, ".repl_history");
 
@@ -32,18 +33,20 @@ const repl = createInterface({ input, output, history });
 
 repl.on("history", dumpHistory);
 
-const symbols = new SymbolRegistry();
-const reader = new Reader(symbols);
-
+const reader = new Reader();
 repl.setPrompt("repl:> ");
 repl.prompt();
 
 for await (const line of repl) {
   try {
-      const expr = reader.read(line);
-      print(expr);
+    const forms = reader.read(line);
+    for (const form of forms) {
+      const res = evaluate(form);
+      console.log(res);
+    }
+    //print(res);
   } catch (err) {
-    console.error(new Error("REPL Error", { cause: err }))
+    console.error(new Error("REPL Error", { cause: err }));
   }
   repl.prompt();
 }
