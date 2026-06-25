@@ -47,5 +47,7 @@ __metadata:
   dependencies:
     "@types/node": "npm:^26.0.0"
     typescript: "npm:^6.0.3"
+  bin:
+    zeptolisp: ./src/repl.ts
   languageName: unknown
   linkType: soft

@@ -1,11 +1,12 @@
 import { exhaust } from "./exhaust.ts";
 import type { Token } from "./tokenizer.ts";
+import type { SymbolRegistry } from "./registry.ts";
 
 type Atom = string | number | symbol;
 type Expr = Atom | List;
 type List = Array<Expr>;
 
-function parse(tokens: Iterator<Token>, depth: number = 0): Expr {
+function parse(tokens: Iterator<Token>, registry: SymbolRegistry, depth: number = 0): Expr {
   function next(): Token | null {
     const { done, value } = tokens.next();
     return done ? null : value;
@@ -16,8 +17,8 @@ function parse(tokens: Iterator<Token>, depth: number = 0): Expr {
   while (true) {
     const token = next();
 
-    console.log("Token: %o", token);
-    console.log("Depth %d", depth);
+    // console.log("Token: %o", token);
+    // console.log("Depth %d", depth);
 
     if (token === null) {
       break;
@@ -28,15 +29,18 @@ function parse(tokens: Iterator<Token>, depth: number = 0): Expr {
     switch (kind) {
       case "string":
       case "number":
-      case "symbol":
         acc.push(value);
+        break;
+
+      case "symbol":
+        acc.push(registry.for(value));
         break;
 
       case "delimiter":
         if (value === ")") {
           return acc;
         } else if (value === "(") {
-          acc.push(parse(tokens, depth + 1));
+          acc.push(parse(tokens, registry, depth + 1));
         } else {
           throw new Error("Unexpected delimiter value");
         }

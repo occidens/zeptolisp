@@ -311,7 +311,7 @@ const scanName = defineScanner({
     };
   },
   finish(s, state, start, pos) {
-    if (state === "end") {
+    if (state === "end" || state === "continue") {
       const value = s.substring(start, pos);
       return {
         nextPos: pos,

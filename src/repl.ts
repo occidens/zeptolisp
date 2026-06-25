@@ -2,7 +2,9 @@ import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
-import { read } from "./reader.ts";
+import { Reader } from "./reader.ts";
+import { print } from "./print.ts";
+import { SymbolRegistry } from "./registry.ts";
 
 const histfile = join(import.meta.dirname, ".repl_history");
 
@@ -30,16 +32,20 @@ const repl = createInterface({ input, output, history });
 
 repl.on("history", dumpHistory);
 
-while (true) {
-  const line = await repl.question("repl:> ");
-  const expr = read(line);
-  console.log(JSON.stringify(expr));
+const symbols = new SymbolRegistry();
+const reader = new Reader(symbols);
 
-  // if (/^\s*(\s*quit\s*)\s*$/.test(line)) {
-  //   break;
-  // };
-  // const expr = read(line);
-  //console.log(expr);
+repl.setPrompt("repl:> ");
+repl.prompt();
+
+for await (const line of repl) {
+  try {
+      const expr = reader.read(line);
+      print(expr);
+  } catch (err) {
+    console.error(new Error("REPL Error", { cause: err }))
+  }
+  repl.prompt();
 }
 
-repl.close();
+process.stdout.write("\n");
